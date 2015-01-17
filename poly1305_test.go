@@ -533,7 +533,7 @@ func TestIETFDraft(t *testing.T) {
 			t.Errorf("[%d]: mac != vec.tag", i)
 		}
 		if !Verify(&vec.tag, vec.m, &vec.key) {
-			t.Errorf("[%d]: Verify(tag, m, key) returned false")
+			t.Errorf("[%d]: Verify(tag, m, key) returned false", i)
 		}
 	}
 }

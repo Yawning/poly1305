@@ -13,14 +13,16 @@ import (
 	"encoding/binary"
 	"errors"
 	"hash"
+	"runtime"
+	"unsafe"
 )
 
 const (
 	// KeySize is the Poly1305 key size in bytes.
-	KeySize   = 32
+	KeySize = 32
 
 	// Size is the Poly1305 MAC size in bytes.
-	Size      = 16
+	Size = 16
 
 	// BlockSize is the Poly1305 block size in bytes.
 	BlockSize = 16
@@ -34,6 +36,8 @@ var (
 	// ErrInvalidMacSize is the error returned when an invalid sized MAC is
 	// encountered.
 	ErrInvalidMacSize = errors.New("poly1305: invalid mac size")
+
+	isLittleEndian bool
 )
 
 // Poly1305 is an instance of the Poly1305 MAC algorithm.
@@ -132,11 +136,19 @@ func (st *Poly1305) Init(key []byte) {
 	//
 
 	// r &= 0xffffffc0ffffffc0ffffffc0fffffff
-	st.r[0] = binary.LittleEndian.Uint32(key[0:]) & 0x3ffffff
-	st.r[1] = (binary.LittleEndian.Uint32(key[3:]) >> 2) & 0x3ffff03
-	st.r[2] = (binary.LittleEndian.Uint32(key[6:]) >> 4) & 0x3ffc0ff
-	st.r[3] = (binary.LittleEndian.Uint32(key[9:]) >> 6) & 0x3f03fff
-	st.r[4] = (binary.LittleEndian.Uint32(key[12:]) >> 8) & 0x00fffff
+	if isLittleEndian {
+		st.r[0] = *(*uint32)(unsafe.Pointer(&key[0])) & 0x3ffffff
+		st.r[1] = (*(*uint32)(unsafe.Pointer(&key[3])) >> 2) & 0x3ffff03
+		st.r[2] = (*(*uint32)(unsafe.Pointer(&key[6])) >> 4) & 0x3ffc0ff
+		st.r[3] = (*(*uint32)(unsafe.Pointer(&key[9])) >> 6) & 0x3f03fff
+		st.r[4] = (*(*uint32)(unsafe.Pointer(&key[12])) >> 8) & 0x00fffff
+	} else {
+		st.r[0] = binary.LittleEndian.Uint32(key[0:]) & 0x3ffffff
+		st.r[1] = (binary.LittleEndian.Uint32(key[3:]) >> 2) & 0x3ffff03
+		st.r[2] = (binary.LittleEndian.Uint32(key[6:]) >> 4) & 0x3ffc0ff
+		st.r[3] = (binary.LittleEndian.Uint32(key[9:]) >> 6) & 0x3f03fff
+		st.r[4] = (binary.LittleEndian.Uint32(key[12:]) >> 8) & 0x00fffff
+	}
 
 	// h = 0
 	for i := range st.h {
@@ -144,10 +156,17 @@ func (st *Poly1305) Init(key []byte) {
 	}
 
 	// save pad for later
-	st.pad[0] = binary.LittleEndian.Uint32(key[16:])
-	st.pad[1] = binary.LittleEndian.Uint32(key[20:])
-	st.pad[2] = binary.LittleEndian.Uint32(key[24:])
-	st.pad[3] = binary.LittleEndian.Uint32(key[28:])
+	if isLittleEndian {
+		st.pad[0] = *(*uint32)(unsafe.Pointer(&key[16]))
+		st.pad[1] = *(*uint32)(unsafe.Pointer(&key[20]))
+		st.pad[2] = *(*uint32)(unsafe.Pointer(&key[24]))
+		st.pad[3] = *(*uint32)(unsafe.Pointer(&key[28]))
+	} else {
+		st.pad[0] = binary.LittleEndian.Uint32(key[16:])
+		st.pad[1] = binary.LittleEndian.Uint32(key[20:])
+		st.pad[2] = binary.LittleEndian.Uint32(key[24:])
+		st.pad[3] = binary.LittleEndian.Uint32(key[28:])
+	}
 
 	st.leftover = 0
 	st.final = false
@@ -183,11 +202,19 @@ func (st *Poly1305) blocks(m []byte, bytes int) {
 
 	for bytes >= BlockSize {
 		// h += m[i]
-		h0 += binary.LittleEndian.Uint32(m[0:]) & 0x3ffffff
-		h1 += (binary.LittleEndian.Uint32(m[3:]) >> 2) & 0x3ffffff
-		h2 += (binary.LittleEndian.Uint32(m[6:]) >> 4) & 0x3ffffff
-		h3 += (binary.LittleEndian.Uint32(m[9:]) >> 6) & 0x3ffffff
-		h4 += (binary.LittleEndian.Uint32(m[12:]) >> 8) | hibit
+		if isLittleEndian {
+			h0 += *(*uint32)(unsafe.Pointer(&m[0])) & 0x3ffffff
+			h1 += (*(*uint32)(unsafe.Pointer(&m[3])) >> 2) & 0x3ffffff
+			h2 += (*(*uint32)(unsafe.Pointer(&m[6])) >> 4) & 0x3ffffff
+			h3 += (*(*uint32)(unsafe.Pointer(&m[9])) >> 6) & 0x3ffffff
+			h4 += (*(*uint32)(unsafe.Pointer(&m[12])) >> 8) | hibit
+		} else {
+			h0 += binary.LittleEndian.Uint32(m[0:]) & 0x3ffffff
+			h1 += (binary.LittleEndian.Uint32(m[3:]) >> 2) & 0x3ffffff
+			h2 += (binary.LittleEndian.Uint32(m[6:]) >> 4) & 0x3ffffff
+			h3 += (binary.LittleEndian.Uint32(m[9:]) >> 6) & 0x3ffffff
+			h4 += (binary.LittleEndian.Uint32(m[12:]) >> 8) | hibit
+		}
 
 		// h *= r
 		d0 = (uint64(h0) * uint64(r0)) + (uint64(h1) * uint64(s4)) + (uint64(h2) * uint64(s3)) + (uint64(h3) * uint64(s2)) + (uint64(h4) * uint64(s1))
@@ -264,7 +291,7 @@ func (st *Poly1305) finish(mac *[Size]byte) {
 
 	h4 += c
 	c = h4 >> 26
-	h4 &=  0x3ffffff
+	h4 &= 0x3ffffff
 
 	h0 += c * 5
 	c = h0 >> 26
@@ -324,11 +351,18 @@ func (st *Poly1305) finish(mac *[Size]byte) {
 	f = uint64(h3) + uint64(st.pad[3]) + (f >> 32)
 	h3 = uint32(f)
 
-	//	mac := make([]byte, Size)
-	binary.LittleEndian.PutUint32(mac[0:], h0)
-	binary.LittleEndian.PutUint32(mac[4:], h1)
-	binary.LittleEndian.PutUint32(mac[8:], h2)
-	binary.LittleEndian.PutUint32(mac[12:], h3)
+	// mac := make([]byte, Size)
+	if isLittleEndian {
+		*(*uint32)(unsafe.Pointer(&mac[0])) = h0
+		*(*uint32)(unsafe.Pointer(&mac[4])) = h1
+		*(*uint32)(unsafe.Pointer(&mac[8])) = h2
+		*(*uint32)(unsafe.Pointer(&mac[12])) = h3
+	} else {
+		binary.LittleEndian.PutUint32(mac[0:], h0)
+		binary.LittleEndian.PutUint32(mac[4:], h1)
+		binary.LittleEndian.PutUint32(mac[8:], h2)
+		binary.LittleEndian.PutUint32(mac[12:], h3)
+	}
 
 	// zero out the state
 	st.Clear()
@@ -358,6 +392,13 @@ func Verify(mac *[Size]byte, m []byte, key *[KeySize]byte) bool {
 	var m2 [Size]byte
 	Sum(&m2, m, key)
 	return subtle.ConstantTimeCompare(mac[:], m2[:]) == 1
+}
+
+func init() {
+	switch runtime.GOARCH {
+	case "386", "amd64":
+		isLittleEndian = true
+	}
 }
 
 var _ hash.Hash = (*Poly1305)(nil)
