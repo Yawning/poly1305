@@ -539,10 +539,13 @@ func TestIETFDraft(t *testing.T) {
 }
 
 func TestIETFDraftForceByteswap(t *testing.T) {
-	oldVal := UseUnsafe
-	UseUnsafe = false
-	TestIETFDraft(t)
-	UseUnsafe = oldVal
+	if !useUnsafe {
+		t.Skipf("not little endian, slow path already taken")
+	} else {
+		useUnsafe = false
+		TestIETFDraft(t)
+		useUnsafe = true
+	}
 }
 
 // Swiped from golang.org/x/crypto/poly1305/poly1305_test.go.
