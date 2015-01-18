@@ -13,7 +13,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"hash"
-	"runtime"
 	"unsafe"
 )
 
@@ -37,7 +36,9 @@ var (
 	// encountered.
 	ErrInvalidMacSize = errors.New("poly1305: invalid mac size")
 
-	isLittleEndian bool
+	// UseUnsafe is set at package load time when the current CPU does not
+	// require the byteswap operations.
+	UseUnsafe bool
 )
 
 // Poly1305 is an instance of the Poly1305 MAC algorithm.
@@ -136,7 +137,7 @@ func (st *Poly1305) Init(key []byte) {
 	//
 
 	// r &= 0xffffffc0ffffffc0ffffffc0fffffff
-	if isLittleEndian {
+	if UseUnsafe {
 		st.r[0] = *(*uint32)(unsafe.Pointer(&key[0])) & 0x3ffffff
 		st.r[1] = (*(*uint32)(unsafe.Pointer(&key[3])) >> 2) & 0x3ffff03
 		st.r[2] = (*(*uint32)(unsafe.Pointer(&key[6])) >> 4) & 0x3ffc0ff
@@ -156,11 +157,12 @@ func (st *Poly1305) Init(key []byte) {
 	}
 
 	// save pad for later
-	if isLittleEndian {
-		st.pad[0] = *(*uint32)(unsafe.Pointer(&key[16]))
-		st.pad[1] = *(*uint32)(unsafe.Pointer(&key[20]))
-		st.pad[2] = *(*uint32)(unsafe.Pointer(&key[24]))
-		st.pad[3] = *(*uint32)(unsafe.Pointer(&key[28]))
+	if UseUnsafe {
+		padArr := (*[4]uint32)(unsafe.Pointer(&key[16]))
+		st.pad[0] = padArr[0]
+		st.pad[1] = padArr[1]
+		st.pad[2] = padArr[2]
+		st.pad[3] = padArr[3]
 	} else {
 		st.pad[0] = binary.LittleEndian.Uint32(key[16:])
 		st.pad[1] = binary.LittleEndian.Uint32(key[20:])
@@ -202,7 +204,7 @@ func (st *Poly1305) blocks(m []byte, bytes int) {
 
 	for bytes >= BlockSize {
 		// h += m[i]
-		if isLittleEndian {
+		if UseUnsafe {
 			h0 += *(*uint32)(unsafe.Pointer(&m[0])) & 0x3ffffff
 			h1 += (*(*uint32)(unsafe.Pointer(&m[3])) >> 2) & 0x3ffffff
 			h2 += (*(*uint32)(unsafe.Pointer(&m[6])) >> 4) & 0x3ffffff
@@ -351,12 +353,12 @@ func (st *Poly1305) finish(mac *[Size]byte) {
 	f = uint64(h3) + uint64(st.pad[3]) + (f >> 32)
 	h3 = uint32(f)
 
-	// mac := make([]byte, Size)
-	if isLittleEndian {
-		*(*uint32)(unsafe.Pointer(&mac[0])) = h0
-		*(*uint32)(unsafe.Pointer(&mac[4])) = h1
-		*(*uint32)(unsafe.Pointer(&mac[8])) = h2
-		*(*uint32)(unsafe.Pointer(&mac[12])) = h3
+	if UseUnsafe {
+		macArr := (*[4]uint32)(unsafe.Pointer(&mac[0]))
+		macArr[0] = h0
+		macArr[1] = h1
+		macArr[2] = h2
+		macArr[3] = h3
 	} else {
 		binary.LittleEndian.PutUint32(mac[0:], h0)
 		binary.LittleEndian.PutUint32(mac[4:], h1)
@@ -395,9 +397,15 @@ func Verify(mac *[Size]byte, m []byte, key *[KeySize]byte) bool {
 }
 
 func init() {
-	switch runtime.GOARCH {
-	case "386", "amd64":
-		isLittleEndian = true
+	// Use the UTF-32 (UCS-4) Byte Order Mark to detect host byte order,
+	// which enables the further use of 'unsafe' to work around the Go
+	// compiler's piss-poor inlining.  Gotta Go Fast.
+	const bomLE = 0x0000feff
+	bom := [4]byte{0xff, 0xfe, 0x00, 0x00}
+
+	bomHost := *(*uint32)(unsafe.Pointer(&bom[0]))
+	if bomHost == 0x0000feff { // Little endian, use unsafe.
+		UseUnsafe = true
 	}
 }
 

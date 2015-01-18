@@ -538,6 +538,13 @@ func TestIETFDraft(t *testing.T) {
 	}
 }
 
+func TestIETFDraftForceByteswap(t *testing.T) {
+	oldVal := UseUnsafe
+	UseUnsafe = false
+	TestIETFDraft(t)
+	UseUnsafe = oldVal
+}
+
 // Swiped from golang.org/x/crypto/poly1305/poly1305_test.go.
 
 func Benchmark64(b *testing.B) {
