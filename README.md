@@ -3,7 +3,7 @@
 
 Poly1305 implements the Poly1305 MAC algorithm, exposing a saner interface than
 the one provided by golang.org/x/crypto/poly1305.  In particular it exposes a
-hash.Hash.
+object that implements a hash.Hash interface.
 
 The implementation is based on the Public Domain poly1305-donna-32 by Andrew
 Moon, as a cgo based poly1305-donna-64 implementation didn't appear to perform

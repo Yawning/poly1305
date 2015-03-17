@@ -371,7 +371,7 @@ func (st *Poly1305) finish(mac *[Size]byte) {
 }
 
 // New returns a new Poly1305 instance keyed with the supplied key.
-func New(key []byte) (hash.Hash, error) {
+func New(key []byte) (*Poly1305, error) {
 	if len(key) != KeySize {
 		return nil, ErrInvalidKeySize
 	}
