@@ -539,12 +539,12 @@ func TestIETFDraft(t *testing.T) {
 }
 
 func TestIETFDraftForceByteswap(t *testing.T) {
-	if !useUnsafe {
+	if !isLittleEndian {
 		t.Skipf("not little endian, slow path already taken")
 	} else {
-		useUnsafe = false
+		isLittleEndian = false
 		TestIETFDraft(t)
-		useUnsafe = true
+		isLittleEndian = true
 	}
 }
 

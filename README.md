@@ -5,12 +5,8 @@ Poly1305 implements the Poly1305 MAC algorithm, exposing a saner interface than
 the one provided by golang.org/x/crypto/poly1305.  In particular it exposes a
 object that implements a hash.Hash interface.
 
-The implementation is based on the Public Domain poly1305-donna-32 by Andrew
-Moon, as a cgo based poly1305-donna-64 implementation didn't appear to perform
-much faster.
-
-The package uses "unsafe" to skip the byteswapping, since the Go compiler is
-utterly terrible at inlining.
+The implementation is based on the Public Domain poly1305-donna by Andrew
+Moon.
 
 | Implementation       | 64 byte      | 1024 byte   |
 | -------------------- | ------------ | ----------- |
