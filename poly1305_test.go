@@ -1,3 +1,11 @@
+//
+// poly1305.go: Poly1305 MAC known answer tests.
+//
+// To the extent possible under law, Yawning Angel waived all copyright
+// and related or neighboring rights to poly1305, using the creative
+// commons "CC0" public domain dedication. See LICENSE or
+// <http://creativecommons.org/publicdomain/zero/1.0/> for full details.
+
 package poly1305
 
 import (

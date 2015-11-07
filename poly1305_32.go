@@ -1,4 +1,10 @@
+//
 // poly1305_32.go: 32->64 bit multiplies, 64 bit additions
+//
+// To the extent possible under law, Yawning Angel waived all copyright
+// and related or neighboring rights to poly1305, using the creative
+// commons "CC0" public domain dedication. See LICENSE or
+// <http://creativecommons.org/publicdomain/zero/1.0/> for full details.
 
 package poly1305
 

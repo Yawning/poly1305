@@ -1,4 +1,10 @@
+//
 // poly1305.go: Poly1305 MAC.
+//
+// To the extent possible under law, Yawning Angel waived all copyright
+// and related or neighboring rights to poly1305, using the creative
+// commons "CC0" public domain dedication. See LICENSE or
+// <http://creativecommons.org/publicdomain/zero/1.0/> for full details.
 
 // Package poly1305 is a Poly1305 MAC implementation.  It is different from the
 // golang.org/x/crypto implementation in that it exports a hash.Hash interface
