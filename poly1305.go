@@ -11,6 +11,7 @@ import (
 	"crypto/subtle"
 	"errors"
 	"hash"
+	"runtime"
 	"unsafe"
 )
 
@@ -187,9 +188,13 @@ func init() {
 	const bomLE = 0x0000feff
 	bom := [4]byte{0xff, 0xfe, 0x00, 0x00}
 
-	bomHost := *(*uint32)(unsafe.Pointer(&bom[0]))
-	if bomHost == 0x0000feff { // Little endian, use unsafe.
-		isLittleEndian = true
+	// ARM doesn't get the spiffy fast code since it's picky wrt alignment
+	// and I doubt Go does the right thing.
+	if runtime.GOARCH != "arm" {
+		bomHost := *(*uint32)(unsafe.Pointer(&bom[0]))
+		if bomHost == 0x0000feff { // Little endian, use unsafe.
+			isLittleEndian = true
+		}
 	}
 }
 
